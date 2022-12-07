@@ -7,12 +7,13 @@ from google.cloud import storage
 from google.cloud import translate_v2 as translate
 from google.cloud import vision
 
-vision_client = vision.ImageAnnotatorClient()
+vision_client = vision.ImageAnnotatorClient( )
 translate_client = translate.Client()
 publisher = pubsub_v1.PublisherClient()
 storage_client = storage.Client()
 
-project_id = os.environ["GCP_PROJECT"]
+
+project_id = os.environ["ojt-analysis-data"]
 
 # [START functions_ocr_detect]
 def detect_text(bucket, filename):
@@ -74,11 +75,10 @@ def validate_message(message, param):
 # [END message_validatation_helper]
 
 
-
-# Triggered from a change to a Cloud Storage bucket - when the upload file is a image .
+# [START functions_ocr_process]
+# the first function to be called by the Cloud Function
 def process_image(file, context):
-    """Cloud Function triggered by Cloud Storage when a file is changed.
-    Args:
+    """ Args:
         file (dict): Metadata of the changed file, provided by the triggering
                                  Cloud Storage event.
         context (google.cloud.functions.Context): Metadata of triggering event.
@@ -93,24 +93,7 @@ def process_image(file, context):
     print("File {} processed.".format(file["name"]))
 
 
-# the main function to trigger the cloud function
-def trigger_from_cloud_storge(event, context):
-    """Triggered by a change to a Cloud Storage bucket.
-    Args:
-         event (dict): Event payload.
-         context (google.cloud.functions.Context): Metadata for the event.
-    """
-    file = event
-    file_type = file["name"].split(".")[-1]
-    print(f"file type: {file_type}")
-
-    if file_type in ["jpg", "png", "jpeg"]:
-        print("Image file detected.")
-        # process the image
-        process_image(file, context)
-
-    else:
-        print("Not an image file.")
+# [END functions_ocr_process]
 
 
 # [START functions_ocr_translate]
@@ -137,9 +120,9 @@ def translate_text(event, context):
         "lang": target_lang,
     }
     message_data = json.dumps(message).encode("utf-8")
-    topic_path = publisher.topic_path(project_id, topic_name)
-    future = publisher.publish(topic_path, data=message_data)
-    future.result()
+    # topic_path = publisher.topic_path(project_id, topic_name)
+    # future = publisher.publish(topic_path, data=message_data)
+    # future.result()
 
 
 # [END functions_ocr_translate]
