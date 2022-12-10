@@ -4,6 +4,7 @@ import os
 
 from google.cloud import pubsub_v1
 from google.cloud import storage
+from google.cloud import speech
 from google.cloud import translate_v2 as translate
 from google.cloud import vision
 
@@ -11,10 +12,10 @@ vision_client = vision.ImageAnnotatorClient()
 translate_client = translate.Client()
 publisher = pubsub_v1.PublisherClient()
 storage_client = storage.Client()
+speech_client = speech.SpeechClient()
 
 project_id = os.environ["GCP_PROJECT"]
 
-# [START functions_ocr_detect]
 def detect_text(bucket, filename):
     print("Looking for text in image {}".format(filename))
 
@@ -23,6 +24,7 @@ def detect_text(bucket, filename):
     image = vision.Image(
         source=vision.ImageSource(gcs_image_uri=f"gs://{bucket}/{filename}")
     )
+    # Detect text in the image and extract the text
     text_detection_response = vision_client.text_detection(image=image)
     annotations = text_detection_response.text_annotations
     if len(annotations) > 0:
@@ -31,6 +33,7 @@ def detect_text(bucket, filename):
         text = ""
     print("Extracted text {} from image ({} chars).".format(text, len(text)))
 
+    # Detect the language of the text
     detect_language_response = translate_client.detect_language(text)
     src_lang = detect_language_response["language"]
     print("Detected language {} for text {}.".format(src_lang, text))
@@ -55,10 +58,33 @@ def detect_text(bucket, filename):
         future.result()
 
 
-# [END functions_ocr_detect]
+
+def detect_speech(bucket, filename):
+    print("Looking for speech in audio {}".format(filename))
+
+    # Detect speech in the audio file 
+    audio = speech.RecognitionAudio(uri=f"gs://{bucket}/{filename}")
+    config = speech.RecognitionConfig(
+        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+        sample_rate_hertz=16000,
+        enable_automatic_punctuation=True,
+        language_code="en-US",
+    )
+    response = speech_client.recognize(config=config, audio=audio)
+    text = ""
+    # Extract the text from the response json
+    for result in response.results:
+        text += result.alternatives[0].transcript
+
+    # Save the text to a file and save the file to the bucket
+    bucket_name = os.environ["RESULT_BUCKET"]
+    result_filename = filename.split(".")[0] + ".txt"
+    bucket = storage_client.get_bucket(bucket_name)
+    blob = bucket.blob(filename)
+    blob.upload_from_string(text)
+    print("Saved text to file {} in bucket {}.".format(result_filename, bucket_name))
 
 
-# [START message_validatation_helper]
 def validate_message(message, param):
     var = message.get(param)
     if not var:
@@ -69,10 +95,6 @@ def validate_message(message, param):
             )
         )
     return var
-
-
-# [END message_validatation_helper]
-
 
 
 # Triggered from a change to a Cloud Storage bucket - when the upload file is a image .
@@ -93,6 +115,17 @@ def process_image(file, context):
     print("File {} processed.".format(file["name"]))
 
 
+# Triggered from a change to a Cloud Storage bucket - when the upload file is a audio .
+def process_audio(file, context):
+    bucket = validate_message(file, "bucket")
+    name = validate_message(file, "name")
+
+    detect_speech(bucket, name)
+
+    print("File {} processed.".format(file["name"]))
+
+
+
 # the main function to trigger the cloud function
 def trigger_from_cloud_storge(event, context):
     """Triggered by a change to a Cloud Storage bucket.
@@ -109,11 +142,16 @@ def trigger_from_cloud_storge(event, context):
         # process the image
         process_image(file, context)
 
+    # ditect if the file is a audio file
+    elif file_type in ["mp3", "wav"]:
+        print("Audio file detected.")
+        # process the audio file
+        process_audio(file, context)
+
     else:
-        print("Not an image file.")
+        print("Not a valid file type.")
 
 
-# [START functions_ocr_translate]
 def translate_text(event, context):
     if event.get("data"):
         message_data = base64.b64decode(event["data"]).decode("utf-8")
@@ -142,10 +180,7 @@ def translate_text(event, context):
     future.result()
 
 
-# [END functions_ocr_translate]
 
-
-# [START functions_ocr_save]
 def save_result(event, context):
     if event.get("data"):
         message_data = base64.b64decode(event["data"]).decode("utf-8")
@@ -169,6 +204,3 @@ def save_result(event, context):
     blob.upload_from_string(text)
 
     print("File saved.")
-
-
-# [END functions_ocr_save]
