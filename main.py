@@ -4,7 +4,7 @@ import os
 
 from google.cloud import pubsub_v1
 from google.cloud import storage
-from google.cloud import speech
+from google.cloud import speech_v1
 from google.cloud import translate_v2 as translate
 from google.cloud import vision
 
