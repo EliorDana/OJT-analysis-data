@@ -3,4 +3,4 @@ google-cloud-pubsub==2.9.0
 google-cloud-storage==2.1.0
 google-cloud-translate==3.8.0
 google-cloud-vision==3.1.0
-google-cloud-speech_v1 == 2.16.2
+google-cloud-speech == 2.16.2

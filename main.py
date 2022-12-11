@@ -4,7 +4,7 @@ import os
 
 from google.cloud import pubsub_v1
 from google.cloud import storage
-from google.cloud import speech_v1
+from google.cloud import speech
 from google.cloud import translate_v2 as translate
 from google.cloud import vision
 
@@ -12,7 +12,7 @@ vision_client = vision.ImageAnnotatorClient()
 translate_client = translate.Client()
 publisher = pubsub_v1.PublisherClient()
 storage_client = storage.Client()
-speech_client = speech_v1.SpeechClient()
+speech_client = speech.SpeechClient()
 
 project_id = os.environ["GCP_PROJECT"]
 
@@ -63,9 +63,9 @@ def detect_speech(bucket, filename):
     print("Looking for speech in audio {}".format(filename))
 
     # Detect speech in the audio file 
-    audio = speech_v1.RecognitionAudio(uri=f"gs://{bucket}/{filename}")
-    config = speech_v1.RecognitionConfig(
-        encoding=speech_v1.RecognitionConfig.AudioEncoding.LINEAR16,
+    audio = speech.RecognitionAudio(uri=f"gs://{bucket}/{filename}")
+    config = speech.RecognitionConfig(
+        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=16000,
         enable_automatic_punctuation=True,
         language_code="en-US",
