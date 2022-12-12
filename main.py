@@ -66,7 +66,7 @@ def detect_speech(bucket, filename):
     audio = speech.RecognitionAudio(uri=f"gs://{bucket}/{filename}")
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        sample_rate_hertz=16000,
+        sample_rate_hertz=48000,
         enable_automatic_punctuation=True,
         language_code="en-US",
     )
