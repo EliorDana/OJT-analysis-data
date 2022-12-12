@@ -76,8 +76,10 @@ def detect_speech(bucket, filename):
     for result in response.results:
         text += result.alternatives[0].transcript
 
+    print("Extracted text {} from audio ({} chars).".format(text, len(text)))
+
     # Save the text to a file and save the file to the bucket
-    bucket_name = os.environ["RESULT_BUCKET"]
+    bucket_name = "bucket_api_results"
     result_filename = filename.split(".")[0] + ".txt"
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(filename)
