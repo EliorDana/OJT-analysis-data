@@ -19,6 +19,7 @@ video_client = videointelligence.VideoIntelligenceServiceClient()
 
 
 project_id = os.environ["GCP_PROJECT"]
+bucket_name = "bucket_api_results"
 
 
 def process_video(event, context):
@@ -213,7 +214,7 @@ def save_result(event, context):
 
     text = validate_message(message, "text")
     filename = validate_message(message, "filename")
-    bucket_name = os.environ["RESULT_BUCKET"]
+    
 
     # Check if the message is a result from the translation or from the speech to text API
     if not (message.get("type")) == "audio":
