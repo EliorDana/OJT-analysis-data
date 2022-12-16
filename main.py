@@ -7,14 +7,22 @@ from google.cloud import storage
 from google.cloud import speech
 from google.cloud import translate_v2 as translate
 from google.cloud import vision
+from google.cloud import videointelligence
+
 
 vision_client = vision.ImageAnnotatorClient()
 translate_client = translate.Client()
 publisher = pubsub_v1.PublisherClient()
 storage_client = storage.Client()
 speech_client = speech.SpeechClient()
+video_client = videointelligence.VideoIntelligenceServiceClient()
+
 
 project_id = os.environ["GCP_PROJECT"]
+
+
+def process_video(event, context):
+    pass
 
 def detect_text(bucket, filename):
     print("Looking for text in image {}".format(filename))
@@ -78,13 +86,22 @@ def detect_speech(bucket, filename):
 
     print("Extracted text {} from audio ({} chars).".format(text, len(text)))
 
+    # Save the text using the same filename as the audio file to the bucket using the result topic
+    topic_name = "results_topic-sub"
+    massage = {"text": text, "filename": filename,"type":"audio"}
+    message_data = json.dumps(massage).encode("utf-8")
+    topic_path = publisher.topic_path(project_id, topic_name)
+    future = publisher.publish(topic_path, data=message_data)
+    future.result()
+
+
     # Save the text to a file and save the file to the bucket
-    bucket_name = "bucket_api_results"
-    result_filename = filename.split(".")[0] + ".txt"
-    bucket = storage_client.get_bucket(bucket_name)
-    blob = bucket.blob(filename)
-    blob.upload_from_string(text)
-    print("Saved text to file {} in bucket {}.".format(result_filename, bucket_name))
+    # bucket_name = "bucket_api_results"
+    # result_filename = filename.split(".")[0] + ".txt"
+    # bucket = storage_client.get_bucket(bucket_name)
+    # blob = bucket.blob(filename)
+    # blob.upload_from_string(text)
+    # print("Saved text to file {} in bucket {}.".format(result_filename, bucket_name))
 
 
 def validate_message(message, param):
@@ -149,7 +166,11 @@ def trigger_from_cloud_storge(event, context):
         print("Audio file detected.")
         # process the audio file
         process_audio(file, context)
-
+    elif file_type in ["mp4"]:
+        print("Video file detected.")
+        # process the video file
+        process_video(file, context)
+    
     else:
         print("Not a valid file type.")
 
@@ -192,12 +213,16 @@ def save_result(event, context):
 
     text = validate_message(message, "text")
     filename = validate_message(message, "filename")
-    lang = validate_message(message, "lang")
+    bucket_name = os.environ["RESULT_BUCKET"]
+
+    # Check if the message is a result from the translation or from the speech to text API
+    if not (message.get("type")) == "audio":
+        lang = validate_message(message, "lang")
+        result_filename = "{}_{}.txt".format(filename, lang)
+    else:
+        result_filename = "{}.txt".format(filename)
 
     print("Received request to save file {}.".format(filename))
-
-    bucket_name = os.environ["RESULT_BUCKET"]
-    result_filename = "{}_{}.txt".format(filename, lang)
     bucket = storage_client.get_bucket(bucket_name)
     blob = bucket.blob(result_filename)
 
