@@ -157,7 +157,7 @@ def validate_message(message, param):
 
 # Triggered from a change to a Cloud Storage bucket - when the upload file is a image .
 def process_image(file, context):
-    
+
     bucket = validate_message(file, "bucket")
     name = validate_message(file, "name")
 
@@ -252,7 +252,8 @@ def save_result(event, context):
         lang = validate_message(message, "lang")
         result_filename = "{}_{}.txt".format(filename, lang)
     else:
-        result_filename = "{}.txt".format(filename)
+        filename_parts = filename.split(".")[0]
+        result_filename = "{}.txt".format(filename_parts)
 
     print("Received request to save file {}.".format(filename))
     bucket = storage_client.get_bucket(bucket_name)
