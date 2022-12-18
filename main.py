@@ -248,11 +248,11 @@ def save_result(event, context):
     
 
     # Check if the message is a result from the translation or from the speech to text API
+    filename_parts = filename.split(".")[0]
     if not (message.get("type")) == "audio":
         lang = validate_message(message, "lang")
-        result_filename = "{}_{}.txt".format(filename, lang)
+        result_filename = "{}_{}.txt".format(filename_parts, lang)
     else:
-        filename_parts = filename.split(".")[0]
         result_filename = "{}.txt".format(filename_parts)
 
     print("Received request to save file {}.".format(filename))
