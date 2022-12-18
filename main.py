@@ -2,12 +2,8 @@ import base64
 import json
 import os
 
-from google.cloud import pubsub_v1
-from google.cloud import storage
-from google.cloud import speech
-from google.cloud import translate_v2 as translate
-from google.cloud import vision
-from google.cloud import videointelligence
+from google.cloud import pubsub_v1 , storage, speech, translate_v2 as translate, vision, videointelligence
+from google.cloud.videointelligence import Feature as detectFeature
 
 
 vision_client = vision.ImageAnnotatorClient()
@@ -23,7 +19,58 @@ bucket_name = "bucket_api_results"
 
 
 def process_video(event, context):
-    pass
+    # Create  a list of features to be extracted from the video
+    features = [    detectFeature.OBJECT_TRACKING,
+                    detectFeature.LABEL_DETECTION,
+                    detectFeature.SHOT_CHANGE_DETECTION,
+                    detectFeature.SPEECH_TRANSCRIPTION,
+                    detectFeature.LOGO_RECOGNITION,
+                    detectFeature.EXPLICIT_CONTENT_DETECTION,
+                    detectFeature.TEXT_DETECTION,
+                    detectFeature.FACE_DETECTION,
+                    detectFeature.PERSON_DETECTION
+                ]
+
+    # Create a speech transcription configoration
+    transcript_config = videointelligence.SpeechTranscriptionConfig(
+    language_code="en-US", enable_automatic_punctuation=True
+    )
+
+    # Create a person detection configoration
+    person_config = videointelligence.PersonDetectionConfig(
+        include_bounding_boxes=True,
+        include_attributes=False,
+        include_pose_landmarks=True,
+    )
+
+    # Create a face detection configoration
+    face_config = videointelligence.FaceDetectionConfig(
+        include_bounding_boxes=True, include_attributes=True
+    )
+
+    # Create a video context with the above configorations
+    video_context = videointelligence.VideoContext(
+        speech_transcription_config=transcript_config,
+        person_detection_config=person_config,
+        face_detection_config=face_config)
+
+    gcs_uri = f"gs://{event['bucket']}/{event['name']}"
+    output_uri = f"gs://{bucket_name}/{event['name']}.json"
+
+    # Start the video annotation request and save to the result to the output_uri
+    operation = video_client.annotate_video(
+        request={"features": features,
+                 "input_uri": gcs_uri,
+                 "output_uri": output_uri,
+                 "video_context": video_context}
+    )
+
+    print("\nProcessing video.", operation)
+
+    result = operation.result(timeout=300)
+
+    print("\n finnished processing.")
+    
 
 def detect_text(bucket, filename):
     print("Looking for text in image {}".format(filename))
@@ -96,15 +143,6 @@ def detect_speech(bucket, filename):
     future.result()
 
 
-    # Save the text to a file and save the file to the bucket
-    # bucket_name = "bucket_api_results"
-    # result_filename = filename.split(".")[0] + ".txt"
-    # bucket = storage_client.get_bucket(bucket_name)
-    # blob = bucket.blob(filename)
-    # blob.upload_from_string(text)
-    # print("Saved text to file {} in bucket {}.".format(result_filename, bucket_name))
-
-
 def validate_message(message, param):
     var = message.get(param)
     if not var:
@@ -119,14 +157,7 @@ def validate_message(message, param):
 
 # Triggered from a change to a Cloud Storage bucket - when the upload file is a image .
 def process_image(file, context):
-    """Cloud Function triggered by Cloud Storage when a file is changed.
-    Args:
-        file (dict): Metadata of the changed file, provided by the triggering
-                                 Cloud Storage event.
-        context (google.cloud.functions.Context): Metadata of triggering event.
-    Returns:
-        None; the output is written to stdout and Stackdriver Logging
-    """
+    
     bucket = validate_message(file, "bucket")
     name = validate_message(file, "name")
 
