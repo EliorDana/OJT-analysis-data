@@ -55,7 +55,8 @@ def process_video(event, context):
         face_detection_config=face_config)
 
     gcs_uri = f"gs://{event['bucket']}/{event['name']}"
-    output_uri = f"gs://{bucket_name}/{event['name']}.json"
+    json_name = event['name'].split(".")[0]
+    output_uri = f"gs://{bucket_name}/{json_name}.json"
 
     # Start the video annotation request and save to the result to the output_uri
     operation = video_client.annotate_video(
